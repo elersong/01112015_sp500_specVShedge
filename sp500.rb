@@ -1,4 +1,7 @@
 require 'pry'
+require 'nokogiri'
+require 'open-uri'
+require 'csv'
 # ============================================================================== Pseudocode Algorithm
 #
 # 1.  Iterate over list of stocks to grab each one individually
@@ -17,6 +20,33 @@ require 'pry'
 #
 # ============================================================================== Class / Method Definitions
 
+STOCKS = CSV.read('sp500_companies.csv').sample(3)
+BASE_URI = "http://finance.yahoo.com/q/op?s=[symbol]&straddle=true&date=[exp_date]"
+EXP_DATE = 1421452800
 
+class Stock
+  attr_accessor :symbol, :name, :sector, :calls_around_money, :puts_around_money
+    
+  def initialize(array)
+    @symbol = array[0]
+    @name = array[1]
+    @sector = array[2]
+  end
+  
+  def is_optionable?
+    yhoo_uri = BASE_URI.gsub("[symbol]", @symbol).gsub("[exp_date]",EXP_DATE.to_s)
+    yhoo_options_page = Nokogiri::HTML(open(yhoo_uri)) 
+    yhoo_options_page.css('.in-the-money').empty? ? false : true
+  end
+    
+end
+
+class StockFile
+end
 
 # ============================================================================== Program Logic
+
+STOCKS.each do |stock|
+  one_stock = Stock.new(stock)
+  puts one_stock.is_optionable?
+end

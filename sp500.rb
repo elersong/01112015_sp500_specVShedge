@@ -141,6 +141,41 @@ class Stock
 end
 
 class StockFile
+  
+  def self.details_around_money_append(stock_object) # <= Object
+    CSV.open("daily_details_around_the_money.csv", "a+") do |daily_details|
+      call_info = []
+      call_info << Time.now.strftime("%Y-%m-%d")
+      call_info << stock_object.symbol
+      
+      stock_object.calls_contracts_around_money.flatten.each do |number|
+        call_info << number
+      end
+      
+      put_info = []
+      put_info << Time.now.strftime("%Y-%m-%d")
+      put_info << stock_object.symbol
+      
+      stock_object.puts_contracts_around_money.flatten.each do |number|
+        put_info << number
+      end
+      
+      daily_details << call_info
+      daily_details << put_info
+    end
+  end
+  
+  def self.daily_sums_append(stock_object)
+    CSV.open("daily_sums_per_symbol.csv", "a+") do |daily_sums|
+      new_row = []
+      new_row << Time.now.strftime("%Y-%m-%d")
+      new_row << stock_object.symbol
+      new_row << (stock_object.sum_of_calls + stock_object.sum_of_puts)
+      
+      daily_sums << new_row
+    end
+  end
+  
 end
 
 # ============================================================================== Program Logic
@@ -153,4 +188,6 @@ STOCKS.each do |stock|
   puts one_stock.puts_contracts_around_money.inspect
   puts "calls: #{one_stock.sum_of_calls}"
   puts "puts: #{one_stock.sum_of_puts}"
+  StockFile.details_around_money_append one_stock
+  StockFile.daily_sums_append one_stock
 end

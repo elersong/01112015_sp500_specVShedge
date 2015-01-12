@@ -25,13 +25,15 @@ BASE_URI = "http://finance.yahoo.com/q/op?s=[symbol]&straddle=true&date=[exp_dat
 EXP_DATE = 1421452800
 
 class Stock
-  attr_accessor :symbol, :name, :sector, :yhoo_uri, :calls_around_money, :puts_around_money
+  attr_accessor :symbol, :name, :sector, :yhoo_uri, :calls_contracts_around_money, :puts_contracts_around_money
     
   def initialize(array)
     @symbol = array[0]
     @name = array[1]
     @sector = array[2]
     @yhoo_uri = BASE_URI.gsub("[symbol]", @symbol).gsub("[exp_date]",EXP_DATE.to_s)
+    @calls_contracts_around_money = get_calls_around_money_open_interest
+    @puts_contracts_around_money = get_puts_around_money_open_interest
   end
   
   def is_optionable?
@@ -58,7 +60,7 @@ class Stock
       
       unless in_money.empty?
         #puts in_money
-        open_interest_contracts_array[0] << in_money
+        open_interest_contracts_array[0] << in_money.to_i
         start_counting_near_money = false
         next_rows = 2 # reset if iterator hits another in-the-money row on the way down the table
         open_interest_contracts_array[1] = [] # reset the near-the-money array too
@@ -68,16 +70,16 @@ class Stock
         #binding.pry
         next_rows -= 1
         #puts near_money
-        open_interest_contracts_array[1] << near_money
+        open_interest_contracts_array[1] << near_money.to_i
         #puts "^ near the money"
       end
     end
     
     if open_interest_contracts_array[0].count < 3
       len = open_interest_contracts_array[0].count
-      puts [open_interest_contracts_array[0][-len..-1],open_interest_contracts_array[1]].inspect
+      return [open_interest_contracts_array[0][-len..-1],open_interest_contracts_array[1]]
     else
-      puts [open_interest_contracts_array[0][-3..-1],open_interest_contracts_array[1]].inspect
+      return [open_interest_contracts_array[0][-3..-1],open_interest_contracts_array[1]]
     end
   end
   
@@ -101,7 +103,7 @@ class Stock
       start_counting_in_money = true
       
       if in_money.empty? && !stop_counting_near_money
-        open_interest_contracts_array[1] << near_money
+        open_interest_contracts_array[1] << near_money.to_i
         start_counting_in_money = false
         next_rows = 2 # reset if iterator hits another near-the-money row on the way down the table
         open_interest_contracts_array[0] = [] # reset the in-the-money array too
@@ -109,7 +111,7 @@ class Stock
       
       if start_counting_in_money && next_rows >= 0
         next_rows -= 1
-        open_interest_contracts_array[0] << in_money
+        open_interest_contracts_array[0] << in_money.to_i
         stop_counting_near_money = true # once iterator hits in-the-money stop adding to near-money ary
       end
     end
@@ -127,6 +129,14 @@ class Stock
       return [open_interest_contracts_array[0][-3..-1],open_interest_contracts_array[1][-3..-1]]
     end
   end
+  
+  def sum_of_calls
+    @calls_contracts_around_money.flatten.grep(Integer).inject(0) { |sum,x| sum + x }
+  end
+  
+  def sum_of_puts
+    @puts_contracts_around_money.flatten.grep(Integer).inject(0) { |sum,x| sum + x }
+  end
     
 end
 
@@ -139,5 +149,8 @@ STOCKS.each do |stock|
   one_stock = Stock.new(stock)
   puts one_stock.name
   puts one_stock.symbol
-  one_stock.get_puts_around_money_open_interest
+  puts one_stock.calls_contracts_around_money.inspect
+  puts one_stock.puts_contracts_around_money.inspect
+  puts "calls: #{one_stock.sum_of_calls}"
+  puts "puts: #{one_stock.sum_of_puts}"
 end

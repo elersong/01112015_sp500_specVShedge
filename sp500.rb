@@ -20,23 +20,69 @@ require 'csv'
 #
 # ============================================================================== Class / Method Definitions
 
-STOCKS = CSV.read('sp500_companies.csv').sample(3)
+STOCKS = CSV.read('sp500_companies.csv').sample(1)
 BASE_URI = "http://finance.yahoo.com/q/op?s=[symbol]&straddle=true&date=[exp_date]"
 EXP_DATE = 1421452800
 
 class Stock
-  attr_accessor :symbol, :name, :sector, :calls_around_money, :puts_around_money
+  attr_accessor :symbol, :name, :sector, :yhoo_uri, :calls_around_money, :puts_around_money
     
   def initialize(array)
     @symbol = array[0]
     @name = array[1]
     @sector = array[2]
+    @yhoo_uri = BASE_URI.gsub("[symbol]", @symbol).gsub("[exp_date]",EXP_DATE.to_s)
   end
   
   def is_optionable?
-    yhoo_uri = BASE_URI.gsub("[symbol]", @symbol).gsub("[exp_date]",EXP_DATE.to_s)
-    yhoo_options_page = Nokogiri::HTML(open(yhoo_uri)) 
+    yhoo_options_page = Nokogiri::HTML(open(self.yhoo_uri)) 
     yhoo_options_page.css('.in-the-money').empty? ? false : true
+  end
+  
+  def get_calls_around_money_open_interest
+    yhoo_options_page = Nokogiri::HTML(open(self.yhoo_uri)) 
+    table_rows_even = yhoo_options_page.css('table tr.even')
+    table_rows_odd = yhoo_options_page.css('table tr.odd')
+    open_interest_contracts_array = [[],[]]
+    
+    all_rows = table_rows_even.each_with_index.map do |row, index|
+      [row, table_rows_odd[index]]
+    end.flatten
+    
+    next_rows = 3 #how many clicks out of the money to collect data for
+    all_rows.each do |row|
+      next if row.nil?
+      in_money = row.css('td:nth-child(6).in-the-money').text.strip 
+      near_money = row.css('td:nth-child(6)').text.strip
+      start_counting_near_money = true
+      
+      unless in_money.empty?
+        #puts in_money
+        open_interest_contracts_array[0] << in_money
+        start_counting_near_money = false
+        next_rows = 2 # reset if iterator hits another in-the-money row on the way down the table
+        open_interest_contracts_array[1] = [] # reset the near-the-money array too
+      end
+      
+      if start_counting_near_money && next_rows >= 0
+        #binding.pry
+        next_rows -= 1
+        #puts near_money
+        open_interest_contracts_array[1] << near_money
+        #puts "^ near the money"
+      end
+      
+    end
+    
+    if open_interest_contracts_array[0].count < 3
+      len = open_interest_contracts_array[0].count
+      puts [open_interest_contracts_array[0][-len..-1],open_interest_contracts_array[1]].inspect
+    else
+      puts [open_interest_contracts_array[0][-3..-1],open_interest_contracts_array[1]].inspect
+    end
+  end
+  
+  def get_puts_around_money_open_interest
   end
     
 end
@@ -48,5 +94,7 @@ end
 
 STOCKS.each do |stock|
   one_stock = Stock.new(stock)
-  puts one_stock.is_optionable?
+  puts one_stock.name
+  puts one_stock.symbol
+  one_stock.get_calls_around_money_open_interest
 end

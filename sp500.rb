@@ -20,9 +20,9 @@ require 'csv'
 #
 # ============================================================================== Class / Method Definitions
 
-STOCKS = CSV.read('sp500_companies.csv').sample(1)
+STOCKS = CSV.read('sp500_companies.csv')
 BASE_URI = "http://finance.yahoo.com/q/op?s=[symbol]&straddle=true&date=[exp_date]"
-EXP_DATE = 1421452800
+EXP_DATE = 1421452800 # converted to epoch time
 
 class Stock
   attr_accessor :symbol, :name, :sector, :yhoo_uri, :calls_contracts_around_money, :puts_contracts_around_money
@@ -141,11 +141,12 @@ class Stock
 end
 
 class StockFile
+  @today = (Date.today).strftime('%Y-%m-%d')
   
   def self.details_around_money_append(stock_object) # <= Object
     CSV.open("daily_details_around_the_money.csv", "a+") do |daily_details|
       call_info = []
-      call_info << Time.now.strftime("%Y-%m-%d")
+      call_info << @today
       call_info << stock_object.symbol
       
       stock_object.calls_contracts_around_money.flatten.each do |number|
@@ -153,7 +154,7 @@ class StockFile
       end
       
       put_info = []
-      put_info << Time.now.strftime("%Y-%m-%d")
+      put_info << @today
       put_info << stock_object.symbol
       
       stock_object.puts_contracts_around_money.flatten.each do |number|
@@ -168,7 +169,7 @@ class StockFile
   def self.daily_sums_append(stock_object)
     CSV.open("daily_sums_per_symbol.csv", "a+") do |daily_sums|
       new_row = []
-      new_row << Time.now.strftime("%Y-%m-%d")
+      new_row << @today
       new_row << stock_object.symbol
       new_row << (stock_object.sum_of_calls + stock_object.sum_of_puts)
       
@@ -178,16 +179,62 @@ class StockFile
   
 end
 
+class ProgressBar
+  
+  def initialize(number_for_completion)
+    @number_total = number_for_completion.to_f
+    @completed_number = 0
+  end
+  
+  def increment_and_show_bar
+    @completed_number += 1
+    progress_string = "["
+    percentage_complete = (@completed_number/@number_total * 100).to_i
+    
+    100.times do |iteration|
+      if iteration <= percentage_complete
+        progress_string << "="
+      else
+        progress_string << " "
+      end
+    end
+    
+    progress_string << "] #{percentage_complete}%"
+    
+    puts progress_string
+  end
+  
+end
+
 # ============================================================================== Program Logic
 
+progress = ProgressBar.new STOCKS.count
+last_stock = ["","","","","",""]
+
 STOCKS.each do |stock|
+  
+  puts "#{last_stock[0]} (#{last_stock[1]})"
+  puts last_stock[2].inspect
+  puts last_stock[3].inspect
+  puts "calls: #{last_stock[4]}"
+  puts "puts: #{last_stock[5]}"
+  puts ""
+  
+  last_stock = []
+  progress.increment_and_show_bar 
+  
+  # slow down process so that responses don't get interrupted by servers
+  sleep 2
   one_stock = Stock.new(stock)
-  puts one_stock.name
-  puts one_stock.symbol
-  puts one_stock.calls_contracts_around_money.inspect
-  puts one_stock.puts_contracts_around_money.inspect
-  puts "calls: #{one_stock.sum_of_calls}"
-  puts "puts: #{one_stock.sum_of_puts}"
+  
+  last_stock << one_stock.name
+  last_stock << one_stock.symbol
+  last_stock << one_stock.calls_contracts_around_money
+  last_stock << one_stock.puts_contracts_around_money
+  last_stock << one_stock.sum_of_calls
+  last_stock << one_stock.sum_of_puts
+  
   StockFile.details_around_money_append one_stock
   StockFile.daily_sums_append one_stock
+  system("clear")
 end

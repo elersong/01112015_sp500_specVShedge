@@ -141,7 +141,7 @@ class Stock
 end
 
 class StockFile
-  @today = (Date.today).strftime('%Y-%m-%d')
+  @today = (Date.today-1).strftime('%Y-%m-%d')
   
   def self.details_around_money_append(stock_object) # <= Object
     CSV.open("daily_details_around_the_money.csv", "a+") do |daily_details|
@@ -171,8 +171,13 @@ class StockFile
       new_row = []
       new_row << @today
       new_row << stock_object.symbol
-      new_row << (stock_object.sum_of_calls + stock_object.sum_of_puts)
+      new_row << stock_object.sum_of_calls
+      daily_sums << new_row
       
+      new_row = []
+      new_row << @today
+      new_row << stock_object.symbol
+      new_row << stock_object.sum_of_puts
       daily_sums << new_row
     end
   end
@@ -212,7 +217,6 @@ progress = ProgressBar.new STOCKS.count
 last_stock = ["","","","","",""]
 
 STOCKS.each do |stock|
-  
   puts "#{last_stock[0]} (#{last_stock[1]})"
   puts last_stock[2].inspect
   puts last_stock[3].inspect
@@ -224,7 +228,7 @@ STOCKS.each do |stock|
   progress.increment_and_show_bar 
   
   # slow down process so that responses don't get interrupted by servers
-  sleep 2
+  sleep 4
   one_stock = Stock.new(stock)
   
   last_stock << one_stock.name

@@ -12,3 +12,5 @@ Each individual row will hold no more than 6 data points. Three of them represen
 the open interest contracts for that strike price in-the-money and the other three
 represent the same thing near-the-money. When there are not sufficient contracts
 to support data collection, the row will hold fewer than the 3 points of each type.
+
+type "ruby sp500.rb" in console to run script
